@@ -81,6 +81,6 @@ if __name__ == '__main__':
 
     s = TBSFspider()
     s.getContent("http://tieba.baidu.com/p/4295900106")
-    list = s.getContentByPattern()
-    for url in list:
+    url_list = s.getContentByPattern()
+    for url in url_list:
         print (url)
