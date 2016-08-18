@@ -16,9 +16,9 @@ class TBSFspider:
         self.num = 0
         self.allurl = []
 
-    def getContent(self, url):
+    def getContentInTheme(self, url):
         """
-        This function will get the whole page from web,
+        This function will get the whole page from TB's Theme,
         and it will restore the text to @content
         @return: the @content
         @url: the url you need
@@ -41,7 +41,22 @@ class TBSFspider:
                     print (e)
 
     def getContentInTB(self, url):
-        pass
+        """
+          This function will get the whole page from a TB,
+          and it will restore the text to @content
+          @return: the @content
+          @url: the url you need
+          """
+        self.getTheNumOfThemesForTB(url)
+        while(self.num > 0):
+            page = 0
+            try:
+                r = requests.get(url + '&pn=' + str(page))
+                self.content = r.text
+                self.num -= 50
+                page += 50
+            except ConnectionError as e:
+                print(e)
 
     def getContentWithFeedback(self, url):
         pass
@@ -57,8 +72,6 @@ class TBSFspider:
         @index: if there are other pattern in the begin or end, you can use it to match you want(or you should input 0)
         """
 
-        #startIndex = 15
-        #endIndex = -10
         pattern = re.compile( beginString + '(.*)' + endString)
         allText = re.findall(pattern, self.content)
         for url in allText:
@@ -77,10 +90,15 @@ class TBSFspider:
         nums = re.findall(r'共<span class="red">' + '(.*)' + r'</span>页</li>', r.text)
         self.num = int(nums[0])
 
+    def getTheNumOfThemesForTB(self, url):
+        r = requests.get(url)
+        nums = re.findall(r'共有主题数<span class="red_text">' + '(.*)' + r'</span>个', r.text)
+        self.num = int(nums[0])
+
 if __name__ == '__main__':
 
     s = TBSFspider()
-    s.getContent("http://tieba.baidu.com/p/4295900106")
+    s.getContentInTheme("http://tieba.baidu.com/p/4295900106")
     url_list = s.getContentByPattern()
     for url in url_list:
         print (url)
