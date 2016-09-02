@@ -1,19 +1,10 @@
-import TBSFspider
+import Tieba
 
-TBlist = []
-TBSFIndexList = []
+tieba = Tieba.Tieba()
 
-s = TBSFspider.TBSFspider()
-s.getContentInTheme("http://tieba.baidu.com/p/4295900106")
-TBlist = s.getContentByPattern()
+tieba.init_data("http://tieba.baidu.com/f?kw=%E7%BC%87%E8%95%BE%E5%A8%85%E7%9A%84%E7%83%A6%E6%81%BC")
 
-for tb in TBlist:
-    s.clearData()
-    s.getContentInTB(tb)
-    TBSFIndexList.append("tieba.baidu.com" + s.getContentByPattern(r'<a href="', '" title="(.*)整合(.*)', 0)[0])
-
-
-print(TBSFIndexList)
+print(tieba)
 
 
 

@@ -42,11 +42,11 @@ class TBSFspider:
 
     def getContentInTB(self, url):
         """
-          This function will get the whole page from a TB,
-          and it will restore the text to @content
-          @return: the @content
-          @url: the url you need
-          """
+        This function will get the whole page from a TB,
+        and it will restore the text to @content
+        @return: the @content
+        @url: the url you need
+        """
         self.getTheNumOfThemesForTB(url)
         while(self.num > 0):
             page = 0
@@ -58,8 +58,27 @@ class TBSFspider:
             except ConnectionError as e:
                 print(e)
 
-    def getContentWithFeedback(self, url):
-        pass
+    def getTheReplyInTheme(self, url, pageNum):
+        """
+        回复贴性质：http://tieba.baidu.com/p/totalComment?t=1472351600345&tid=3996452026&fid=20112564&pn=1&see_lz=0
+        以上，由6部分构成
+        "http://tieba.baidu.com/p/totalComment?" + time + tid + fid + page + see_lz
+        time:一个时间戳，随便写
+        tid:该主题帖的id
+        fid：该贴吧的id
+        page:页数
+        see_lz:1为只看楼主模式下的回复，0则反之
+        @url:
+        @return:
+        @pageNum:
+        """
+        pattern = re.compile(r"tid:'" + '(.*)' + "'")
+        tid = re.findall(pattern, self.content)
+        pattern = re.compile(r"fid:'" + '(.*)' + "'")
+        fid = re.findall(pattern, self.content)
+
+
+
             
     def getContentByPattern(self, beginString = r'貼吧地址： <a href="'+ '(.*)' + r'"  target="_blank">', endString = '</a><br>書籍化：', index = 1):
         """
