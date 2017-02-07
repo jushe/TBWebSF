@@ -64,3 +64,11 @@ class Tieba:
                 break
 
         self.url = url
+
+    @staticmethod
+    def pre_title(url):
+        r = requests.get(url + "")
+        result = re.findall(re.compile(r"<title>\r\n" + "(.*?)" + "</title>"), r.text)
+        name = (re.compile(r"_百度贴吧")).sub('', result[0])
+        name = name.replace(' ', '')
+        return name

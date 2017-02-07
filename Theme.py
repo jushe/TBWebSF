@@ -1,11 +1,16 @@
 import json
+import math
 import re
 import time
 
 import requests
 
+SFMODE = 1
+INDEXMODE = 0
+
 
 class Theme:
+
     def __init__(self):
         # 帖子内置所需要的数据
         self.url = ""  # 主题url
@@ -17,13 +22,14 @@ class Theme:
         self.fid = ""  # 所属贴吧id
         self.userId = ""  # 楼主id
         self.status = 0  # 获取状态
+        self.floorId = []  # 楼层id
         # 帖子内，关于小说的数据
         self.urlList = []  # 若为整合贴，则其内将存有各个章节或者小说的url
         self.sfTitle = ""  # 若为小说贴，则该值为该小说/章节标题（帖子标题）
         self.sfContent = ""  # 若为小说贴，则该值为小说具体内容
         self.sfTranslator = ""  # 若为小说贴，则该值为章节翻译者
 
-    def init_data(self, url, fid, see_lz=1):
+    def init_data(self, url, fid, see_lz=1, mode=INDEXMODE):
 
         result = re.findall(r"http://tieba.baidu.com/p/" + "(\d+)", url)
         self.tid = str(result[0])
@@ -31,87 +37,145 @@ class Theme:
         r = requests.get(url)
         if r.status_code == requests.codes.ok:
             result = re.findall(r"<title>" + "(.*?)" + "</title>", r.text)
-            if result[0] != '贴吧404':
-                self.status = 1
-                result = re.findall(r'共<span class="red">' + "(\d+?)" + r'</span>页</li>', r.text)
-                self.pageNum = int(result[0])
+            if len(result) > 0:
+                if result[0] != '贴吧404':
+                    self.status = 1
+                    result = re.findall(r'共<span class="red">' + "(\d+?)" + r'</span>页</li>', r.text)
+                    self.pageNum = int(result[0])
 
-                result = re.findall(r'title: "' + r"(.*?)" + r'"', r.text)
-                self.title = result[0]
-                self.title = self.title.replace(' ', '')  # 去除标题内的空格防止非法命名
+                    result = re.findall(r'title: "' + r"(.*?)" + r'"', r.text)
+                    self.title = result[0]
+                    self.title = self.title.replace(' ', '')  # 去除标题内的空格防止非法命名
 
-                result = re.findall(r'<li class="d_name" data-field=\'\{&quot;user_id&quot;:' + "(\d+?)" + r"}'>",
-                                    r.text)
-                self.userId = result[0]
+                    result = re.findall(r'<li class="d_name" data-field=\'\{&quot;user_id&quot;:' + "(\d+?)" + r"}'>",
+                                        r.text)
+                    self.userId = result[0]
 
-                result = re.findall(r'author: "' + "(.*?)" + r'",', r.text)
-                self.sfTranslator = result[0]
+                    result = re.findall(r'author: "' + "(.*?)" + r'",', r.text)
+                    self.sfTranslator = result[0]
 
-                if see_lz == 1:
-                    """获取主题的源代码(只看楼主)"""
-                    for page in range(self.pageNum):
-                        try:
-                            r = requests.get(url + '?pn=' + str(page + 1) + r'&see_lz=1')
-                            self.source += r.text
-                        except ConnectionError as e:
-                            print(e)
-                else:
-                    """获取主题源代码(全部)"""
-                    for page in range(self.pageNum):
-                        try:
-                            r = requests.get(url + '?pn=' + str(page + 1))
-                            self.source += r.text
-                        except ConnectionError as e:
-                            print(e)
+                    if see_lz == 1:
+                        """获取主题的源代码(只看楼主)"""
+                        for page in range(self.pageNum):
+                            try:
+                                r = requests.get(url + '?pn=' + str(page + 1) + r'&see_lz=1')
+                                self.source += r.text
+                            except ConnectionError as e:
+                                print(e)
+                    else:
+                        """获取主题源代码(全部)"""
+                        for page in range(self.pageNum):
+                            try:
+                                r = requests.get(url + '?pn=' + str(page + 1))
+                                self.source += r.text
+                            except ConnectionError as e:
+                                print(e)
 
-                result = re.findall(r'class="d_post_content j_d_post_content ">' + "(.*?)" + r'</div>', self.source)
+                    result = re.findall(r'class="d_post_content j_d_post_content ">' + "(.*?)" + r'</div>', self.source)
 
-                # 内容修正（res内含有一些带有超链接的内容）
-                for res in result:
-                    s = res
-                    rex = re.compile(r"<a" + "(.*?)" + ">")
-                    s = rex.sub('', s)  # 移除超链接
-                    rex = re.compile(r"</a>")
-                    s = rex.sub('', s)  # 移除超链接尾部
-                    rex = re.compile(r"<br>")
-                    s = rex.sub("\n", s)  # 移除<br>并替换为原来的换行
-                    rex = re.compile(r"<img" + "(.*?)" + ">")
-                    s = rex.sub('', s)  # 移除图片链接
+                    # 内容修正（res内含有一些带有超链接的内容）
+                    for res in result:
+                        s = res
+                        rex = re.compile(r"<a" + "(.*?)" + ">")
+                        s = rex.sub('', s)  # 移除超链接
+                        rex = re.compile(r"</a>")
+                        s = rex.sub('', s)  # 移除超链接尾部
+                        rex = re.compile(r"<br>")
+                        s = rex.sub("\n", s)  # 移除<br>并替换为原来的换行
+                        rex = re.compile(r"<img" + "(.*?)" + ">")
+                        s = rex.sub('', s)  # 移除图片链接
 
-                    self.content.append(s)
+                        self.content.append(s)
 
-                # 获取帖子每页的回复
-                if see_lz == 1:
-                    for page in range(self.pageNum):
-                        r = requests.get(
-                            r"http://tieba.baidu.com/p/totalComment?t=" + str(int(time.time() * 1000)) + r"&tid="
-                            + self.tid + r"&fid=" + self.fid + r'&pn=' + str(page + 1) + r'&see_lz=1')
-                        json_result = json.loads(r.text)
-                        if len(json_result['data']['comment_list']) > 0:  # 当存在回复贴（楼中楼）时
-                            for (comment, index) in zip(sorted(json_result['data']['comment_list'].keys()),
-                                                        range(len(json_result['data']['comment_list'].keys()))):
-                                for floor in json_result['data']['comment_list'][comment]['comment_info']:
-                                    if floor['user_id'] == self.userId:
+                    # 获取帖子的楼层id
+
+                    result = re.findall(r'<a href="/p/3996452026\?pid=' + r'(\w+)', self.source)
+                    self.floorId = result
+                    # 获取帖子每页的回复
+                    if see_lz == 1:
+                        for page in range(self.pageNum):
+                            r = requests.get(
+                                r"http://tieba.baidu.com/p/totalComment?t=" + str(int(time.time() * 1000)) + r"&tid="
+                                + self.tid + r"&fid=" + self.fid + r'&pn=' + str(page + 1) + r'&see_lz=1')
+                            json_result = json.loads(r.text)
+                            if len(json_result['data']['comment_list']) > 0:  # 当存在回复贴（楼中楼）时
+                                for (comment, index) in zip(sorted(json_result['data']['comment_list'].keys()),
+                                                            # comment 该楼层的pid
+                                                            range(len(json_result['data']['comment_list'].keys()))):
+                                    for floor in json_result['data']['comment_list'][comment]['comment_info']:
+                                        if floor['user_id'] == self.userId:  # 仅仅获取楼主的回复
+                                            if len(self.content) > index + 1:
+                                                self.content[index + 1] += ("\n" + floor['content'] + "\n")
+                                    if int(json_result['data']['comment_list'][comment]['comment_num']) > 10 \
+                                            and mode == INDEXMODE:
+                                        # 当该回复存在分页时（超过十页自动分页)
+                                        for i in range(math.ceil(json_result['data']
+                                                                 ['comment_list'][comment]['comment_num'] / 10)):
+                                            # 进1法计算页数
+                                            if i != 0:  # 跳过第0页
+                                                r = requests.get(r'http://tieba.baidu.com/p/comment?tid=' +
+                                                                 str(self.tid) + "&pid=" + str(comment) + "&pn=" +
+                                                                 str(i) + "t=" + str(int(time.time() * 1000)))
+                                                result = re.findall(r'<span class="lzl_content_main">' + r"(.*?)"
+                                                                    + r'</span>', r.text)
+                                                # 内容修正（res内含有一些带有超链接的内容）
+                                                for res in result:
+                                                    s = res
+                                                    rex = re.compile(r"<a" + "(.*?)" + ">")
+                                                    s = rex.sub('', s)  # 移除超链接
+                                                    rex = re.compile(r"</a>")
+                                                    s = rex.sub('', s)  # 移除超链接尾部
+                                                    rex = re.compile(r"<br>")
+                                                    s = rex.sub("\n", s)  # 移除<br>并替换为原来的换行
+                                                    rex = re.compile(r"<img" + "(.*?)" + ">")
+                                                    s = rex.sub('', s)  # 移除图片链接
+                                                    self.content[index + 1] += ("\n" + s + "\n")
+                    else:
+                        for page in range(self.pageNum):
+                            r = requests.get(
+                                r"http://tieba.baidu.com/p/totalComment?t=" + str(int(time.time() * 1000)) + r"&tid="
+                                + self.tid + r"&fid=" + self.fid + r'&pn=' + str(page + 1))
+                            json_result = json.loads(r.text)
+                            if len(json_result['data']['comment_list']) > 0:  # 当存在回复贴（楼中楼）时
+                                for (comment, index) in zip(sorted(json_result['data']['comment_list'].keys()),
+                                                            range(len(json_result['data']['comment_list'].keys()))):
+                                    for floor in json_result['data']['comment_list'][comment]['comment_info']:
                                         if len(self.content) > index + 1:
                                             self.content[index + 1] += ("\n" + floor['content'] + "\n")
-                else:
-                    for page in range(self.pageNum):
-                        r = requests.get(
-                            r"http://tieba.baidu.com/p/totalComment?t=" + str(int(time.time() * 1000)) + r"&tid="
-                            + self.tid + r"&fid=" + self.fid + r'&pn=' + str(page + 1))
-                        json_result = json.loads(r.text)
-                        if len(json_result['data']['comment_list']) > 0:  # 当存在回复贴（楼中楼）时
-                            for (comment, index) in zip(sorted(json_result['data']['comment_list'].keys()),
-                                                        range(len(json_result['data']['comment_list'].keys()))):
-                                for floor in json_result['data']['comment_list'][comment]['comment_info']:
-                                    if floor['user_id'] == self.userId:
-                                        if len(self.content) > index + 1:
-                                            self.content[index + 1] += ("\n" + floor['content'] + "\n")
-                self.url = url
+                                    if int(json_result['data']['comment_list'][comment]['comment_num']) > 10 \
+                                            and mode == INDEXMODE:
+                                        # 当该回复存在分页时（超过十页自动分页)
+                                        for i in range(math.ceil(json_result['data']
+                                                                 ['comment_list'][comment]['comment_num'] / 10)):
+                                            # 进1法计算页数
+                                            if i != 0:  # 跳过第0页
+                                                r = requests.get(r'http://tieba.baidu.com/p/comment?tid=' +
+                                                                 str(self.tid) + "&pid=" + str(comment) + "&pn=" +
+                                                                 str(i) + "t=" + str(int(time.time() * 1000)))
+                                                result = re.findall(r'<span class="lzl_content_main">' + r"(.*?)"
+                                                                    + r'</span>', r.text)
+                                                # 内容修正（res内含有一些带有超链接的内容）
+                                                for res in result:
+                                                    s = res
+                                                    rex = re.compile(r"<a" + "(.*?)" + ">")
+                                                    s = rex.sub('', s)  # 移除超链接
+                                                    rex = re.compile(r"</a>")
+                                                    s = rex.sub('', s)  # 移除超链接尾部
+                                                    rex = re.compile(r"<br>")
+                                                    s = rex.sub("\n", s)  # 移除<br>并替换为原来的换行
+                                                    rex = re.compile(r"<img" + "(.*?)" + ">")
+                                                    s = rex.sub('', s)  # 移除图片链接
+                                                    self.content[index + 1] += ("\n" + s + "\n")
+                    self.url = url
 
     def get_tb_address(self):
         for con in self.content:
-            result = re.findall(r'貼吧地址： ' + "(.*?)" + '\n', con)
+            con += ' '
+            result = re.findall(r'貼吧地址： ' + "(.+?)" + r'\s', con)
+            if len(result) != 0:
+                for u in result:
+                    self.urlList.append(u)
+            result = re.findall(r'贴吧地址： ' + "(.+?)" + r'\s', con)
             if len(result) != 0:
                 for u in result:
                     self.urlList.append(u)
@@ -133,4 +197,9 @@ class Theme:
     def pre_title(url):
         r = requests.get(url)
         result = re.findall(r'title: "' + r"(.*?)" + r'"', r.text)
-        return result[0]
+        if len(result) > 0 and result[0] != '贴吧404':
+            title = result[0]
+            title = title.replace(' ', '')  # 去除标题内的空格防止非法命名
+            return title
+        else:
+            return None
